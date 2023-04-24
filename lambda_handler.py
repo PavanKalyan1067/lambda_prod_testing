@@ -22,7 +22,8 @@ def lambda_handler(event, context):
         for record in json.loads(data):
             transformed_record = {
                 'full_name': record['first_name'] + ' ' + record['last_name'],
-                'email': record['email']
+                'email': record['email'],
+                'first_name': record['first_name']
             }
             transformed_data.append(transformed_record)
     
