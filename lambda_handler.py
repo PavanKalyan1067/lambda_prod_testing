@@ -1,31 +1,38 @@
-import json
 import boto3
+import json
+import os
 
+# set up clients
 s3 = boto3.client('s3')
+dynamodb = boto3.client('dynamodb')
 
 def lambda_handler(event, context):
-    # Load the JSON data from S3
+    
+    # read the name of the source S3 bucket and key from the event
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     file_key = event['Records'][0]['s3']['object']['key']
-    obj = s3.get_object(Bucket=bucket_name, Key=file_key)
-    data = obj['Body'].read().decode('utf-8')
-    json_data = json.loads(data)
     
-    # Transform the data
+    # read the data from the source file
+    response = s3.get_object(Bucket=bucket_name, Key=file_key)
+    data = response['Body'].read().decode('utf-8')
+    
+    # transform the data
     transformed_data = []
-    for record in json_data:
-        new_record = {}
-        new_record['name'] = record['first_name'] + ' ' + record['last_name']
-        new_record['email'] = record['email']
-        transformed_data.append(new_record)
+    for record in json.loads(data):
+        transformed_record = {
+            'full_name': record['first_name'] + ' ' + record['last_name'],
+            'email': record['email']
+        }
+        transformed_data.append(transformed_record)
     
-    # Write the transformed data to S3
-    transformed_data_str = json.dumps(transformed_data)
-    bucket_name = 'prod1data/transformeddata/'
-    new_key = 'transformed_data.json'
-    s3.put_object(Bucket=bucket_name, Key=new_key, Body=transformed_data_str)
+    # write the transformed data to DynamoDB
+    table_name = os.environ['abcd_table']
+    with dynamodb.batch_writer(TableName=table_name) as batch:
+        for record in transformed_data:
+            batch.put_item(Item=record)
     
+    # return a success response
     return {
         'statusCode': 200,
-        'body': json.dumps('Data transformation complete')
+        'body': 'Data successfully transformed and written to DynamoDB.'
     }
