@@ -8,12 +8,8 @@ dynamodb = boto3.client('dynamodb')
 
 def lambda_handler(event, context):
     
-    # read the name of the source S3 bucket and key from the event
-    bucket_name = event['Records'][0]['s3']['bucket']['name']
-    file_key = event['Records'][0]['s3']['object']['key']
-    
     # read the data from the source file
-    response = s3.get_object(Bucket=bucket_name, Key=file_key)
+    response = s3.get_object(Bucket='prod1data', Key='rawdata/sstudents_data.json')
     data = response['Body'].read().decode('utf-8')
     
     # transform the data
@@ -26,7 +22,7 @@ def lambda_handler(event, context):
         transformed_data.append(transformed_record)
     
     # write the transformed data to DynamoDB
-    table_name = os.environ['abcd_table']
+    table_name = 'abcd_table'
     with dynamodb.batch_writer(TableName=table_name) as batch:
         for record in transformed_data:
             batch.put_item(Item=record)
